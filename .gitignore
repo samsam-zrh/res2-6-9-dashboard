@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+
+data/raw/
+tmp_doc_images/
+DOCUMENTATION_TECHNIQUE.md
+EXPLICATION_SIMPLE.md
+
+artifacts/*
+!artifacts/summary_metrics.json
+!artifacts/.gitkeep
