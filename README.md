@@ -9,8 +9,6 @@ Le but etait de :
 - faire une prevision de conso journaliere,
 - generer des courbes de charge simples.
 
-J'ai garde une version assez simple pour que le projet tourne vite et soit facile a presenter.
-
 ## Ce qu'il y a dans le repo
 
 - `app.py` : l'app Streamlit
