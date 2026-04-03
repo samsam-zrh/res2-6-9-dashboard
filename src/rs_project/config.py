@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# chemins du projet
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_DIR = PROJECT_ROOT / "src"
 DATA_DIR = PROJECT_ROOT / "data"
@@ -45,12 +46,12 @@ CONSUMPTION_URL = (
 RANDOM_STATE = 42
 CHUNK_SIZE = 400_000
 
-# Les valeurs brutes ressemblent a des watts. On convertit donc en kWh
-# sur un pas de 30 minutes: W / 1000 * 0.5h.
+# conversion simple en kWh
 POWER_TO_KWH_FACTOR = 0.5 / 1000.0
 
 LABEL_NAME_MAP = {0: "RP", 1: "RS"}
 
+# features utilises
 CUSTOMER_FEATURE_COLUMNS = [
     "active_day_rate",
     "n_runs",

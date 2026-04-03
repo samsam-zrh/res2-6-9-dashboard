@@ -1,24 +1,21 @@
 import shutil
-import urllib.request
+import urllib.parse
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import requests
-import urllib.parse
 
 from .config import (
     ARTIFACTS_DIR,
     BALANCED_CHUNKS_DIR,
     BALANCED_LABELS_PATH,
     CHUNK_SIZE,
-    CONSUMPTION_URL,
     DATA_DIR,
     LABEL_NAME_MAP,
     LABEL_SOURCE_CANDIDATES,
     POWER_TO_KWH_FACTOR,
     PROCESSED_DIR,
-    RAW_CONSUMPTION_PATH,
     RAW_DIR,
     RAW_LABELS_PATH,
 )
@@ -43,33 +40,6 @@ def copy_labels_file() -> Path:
         "Fichier de labels introuvable. J'ai cherche ici:\n"
         f"{searched}"
     )
-
-
-def download_consumption_data(force: bool = False) -> Path:
-    if RAW_CONSUMPTION_PATH.exists() and not force:
-        existing_size = RAW_CONSUMPTION_PATH.stat().st_size
-    else:
-        existing_size = 0
-
-    request = urllib.request.Request(CONSUMPTION_URL)
-    mode = "wb"
-    if existing_size > 0 and not force:
-        request.add_header("Range", f"bytes={existing_size}-")
-        mode = "ab"
-
-    with urllib.request.urlopen(request) as response:
-        if existing_size > 0 and getattr(response, "status", None) != 206:
-            existing_size = 0
-            mode = "wb"
-
-        with RAW_CONSUMPTION_PATH.open(mode) as output:
-            while True:
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                output.write(chunk)
-
-    return RAW_CONSUMPTION_PATH
 
 
 def load_labels() -> pd.DataFrame:
@@ -211,6 +181,7 @@ def download_balanced_exports(
     n_per_class: int = 60,
     group_size: int = 20,
 ) -> tuple[pd.DataFrame, list[Path]]:
+    # on prend le meme nombre de RP et de RS
     counts = labels["reference_label"].value_counts()
     n_per_class = int(min(n_per_class, counts.min()))
 
@@ -251,74 +222,3 @@ def download_balanced_exports(
         chunk_path.write_bytes(response.content)
 
     return selected, chunk_paths
-
-
-def stream_daily_and_reference_templates(labels: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    label_lookup = labels[["id", "reference_label"]].drop_duplicates().copy()
-    daily_frames = []
-    template_frames = []
-
-    reader = pd.read_csv(
-        CONSUMPTION_URL,
-        sep=";",
-        encoding="utf-8-sig",
-        dtype={"id": "int64", "valeur": "float32"},
-        chunksize=CHUNK_SIZE,
-    )
-
-    for chunk in reader:
-        timestamps = pd.to_datetime(chunk["horodate"], errors="coerce")
-        valid_mask = timestamps.notna()
-        if not valid_mask.any():
-            continue
-
-        ts = timestamps.loc[valid_mask]
-        base = pd.DataFrame(
-            {
-                "id": chunk.loc[valid_mask, "id"].astype("int64").to_numpy(),
-                "date": ts.dt.strftime("%Y-%m-%d").to_numpy(),
-                "slot": (ts.dt.hour * 2 + ts.dt.minute // 30).astype("int16").to_numpy(),
-                "is_weekend": (ts.dt.dayofweek >= 5).to_numpy(),
-                "step_kwh": (
-                    chunk.loc[valid_mask, "valeur"].astype("float32").to_numpy()
-                    * POWER_TO_KWH_FACTOR
-                ),
-            }
-        )
-
-        daily_chunk = (
-            base.groupby(["id", "date"], as_index=False)
-            .agg(daily_kwh=("step_kwh", "sum"))
-        )
-        daily_frames.append(daily_chunk)
-
-        template_base = base.merge(label_lookup, on="id", how="left")
-        template_chunk = (
-            template_base.groupby(["reference_label", "is_weekend", "slot"], as_index=False)
-            .agg(step_sum=("step_kwh", "sum"), n_obs=("step_kwh", "size"))
-        )
-        template_frames.append(template_chunk)
-
-    daily = pd.concat(daily_frames, ignore_index=True)
-    daily = (
-        daily.groupby(["id", "date"], as_index=False)
-        .agg(daily_kwh=("daily_kwh", "sum"))
-        .sort_values(["id", "date"])
-        .reset_index(drop=True)
-    )
-    daily["date"] = pd.to_datetime(daily["date"])
-
-    templates = pd.concat(template_frames, ignore_index=True)
-    templates = (
-        templates.groupby(["reference_label", "is_weekend", "slot"], as_index=False)
-        .agg(step_sum=("step_sum", "sum"), n_obs=("n_obs", "sum"))
-        .sort_values(["reference_label", "is_weekend", "slot"])
-        .reset_index(drop=True)
-    )
-    templates["mean_step_kwh"] = templates["step_sum"] / templates["n_obs"].clip(lower=1)
-    templates["mean_share"] = templates.groupby(
-        ["reference_label", "is_weekend"]
-    )["mean_step_kwh"].transform(lambda s: s / s.sum() if s.sum() else 0.0)
-    templates["std_share"] = 0.0
-    templates["type_name"] = templates["reference_label"].map(LABEL_NAME_MAP).fillna("Type")
-    return daily, templates

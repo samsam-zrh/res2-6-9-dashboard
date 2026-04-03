@@ -40,7 +40,8 @@ from .generation import evaluate_generator
 from .models import train_classifiers, train_clustering, train_forecasting_models
 
 
-def run_pipeline(force_download: bool = False) -> dict:
+def run_pipeline() -> dict:
+    # fonction principale du projet
     ensure_directories()
     copy_labels_file()
 

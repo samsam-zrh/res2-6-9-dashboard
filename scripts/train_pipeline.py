@@ -11,5 +11,5 @@ from rs_project import run_pipeline
 
 if __name__ == "__main__":
     summary = run_pipeline()
-    print("Pipeline termine.")
+    print("Pipeline fini.")
     print(summary)

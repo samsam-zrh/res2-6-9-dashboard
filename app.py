@@ -100,8 +100,8 @@ st.sidebar.markdown("Source: Enedis Open Data + labels de reference")
 if page == "Accueil":
     st.title("Projet IA sur les courbes de charge RES2-6-9")
     st.write(
-        "Cette application synthetise un projet de bout en bout autour de quatre "
-        "briques: clustering, classification, forecasting et generation."
+        "Petite app pour presenter le projet avec les 4 parties demandees : "
+        "clustering, classification, forecasting et generation."
     )
 
     col1, col2, col3, col4 = st.columns(4)
@@ -118,7 +118,7 @@ if page == "Accueil":
     label_balance = pd.Series(summary["data"]["label_balance_reference"]).rename("count")
     st.bar_chart(label_balance)
 
-    st.subheader("Choix methodologiques")
+    st.subheader("Resume rapide")
     st.markdown(
         "- Clustering: KMeans a 2 clusters sur des features metier issues des consommations journalieres.\n"
         "- Classification: regression logistique, random forest et MLP pour reproduire le label issu du clustering.\n"
@@ -164,8 +164,7 @@ if page == "Clustering":
 if page == "Classification":
     st.title("2. Classification supervisee")
     st.write(
-        "Les modeles sont entraines sur le label produit par le clustering. "
-        "On les compare ensuite aussi aux labels de reference fournis."
+        "Ici les modeles essayent de retrouver le type de client a partir des features."
     )
 
     st.subheader("Comparaison des modeles")
@@ -251,8 +250,7 @@ if page == "Forecasting":
 if page == "Generation":
     st.title("4. Generation conditionnelle de courbes")
     st.write(
-        "Le generateur utilise un profil demi-horaire moyen par type de client "
-        "et un tirage empirique de l'energie journaliere."
+        "Le generateur reprend une forme de courbe moyenne et une energie journaliere plausible."
     )
 
     type_name = st.selectbox("Type de client", ["RP", "RS"])
