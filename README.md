@@ -1,69 +1,77 @@
 # Projet RES2-6-9
 
-Projet Python simple et fonctionnel construit autour du cas d'usage Enedis `RES2-6-9` pour distinguer les residences principales (RP) et les residences secondaires (RS), puis comparer plusieurs approches de classification, de prevision et de generation.
+Petit projet fait a partir du jeu de donnees Enedis `RES2-6-9`.
 
-Pour garder un projet pedagogique, rapide a executer et coherent avec la consigne d'un jeu de test equilibre, le pipeline travaille sur un sous-jeu balance RS/RP telecharge par paquets d'IDs.
+Le but etait de :
 
-## Contenu
+- separer les residences principales (RP) et secondaires (RS),
+- tester quelques modeles de classification,
+- faire une prevision de conso journaliere,
+- generer des courbes de charge simples.
 
-- `scripts/train_pipeline.py` : lance tout le pipeline.
-- `app.py` : dashboard Streamlit.
-- `src/rs_project/` : modules de preparation des donnees, features, modeles et generation.
-- `data/raw/` : donnees sources.
-- `data/processed/` : tables pretes pour l'application.
-- `artifacts/` : modeles et resume des metriques.
+J'ai garde une version assez simple pour que le projet tourne vite et soit facile a presenter.
 
-## Methode
+## Ce qu'il y a dans le repo
 
-### 1. Clustering
+- `app.py` : l'app Streamlit
+- `scripts/train_pipeline.py` : script qui prepare les donnees et entraine les modeles
+- `src/rs_project/` : le code Python du projet
+- `data/processed/` : les fichiers deja prepares pour l'app
+- `artifacts/` : quelques fichiers de sortie des modeles
 
-On agrege les donnees demi-horaires en energie journaliere et on construit des features metier inspirees du notebook de cours :
+## Idee generale
 
-- taux de jours actifs ;
-- longueur des sequences d'activite / d'inactivite ;
-- niveau moyen et variabilite de consommation ;
-- comportement semaine / weekend ;
-- saisonnalite hiver / ete / mi-saison.
+### Clustering
 
-On applique ensuite `KMeans` avec `k=2` pour obtenir une segmentation directement exploitable en RP / RS.
+Je pars des consommations demi-horaires et je les transforme en conso par jour.
+Ensuite je cree quelques variables simples :
 
-### 2. Classification
+- jours actifs
+- longueur des periodes d'activite / inactivite
+- conso moyenne
+- difference semaine / week-end
+- difference hiver / ete
 
-On entraine plusieurs modeles supervises pour reproduire le label obtenu au clustering :
+Puis j'applique `KMeans` pour separer les profils.
 
-- regression logistique ;
-- random forest ;
-- MLP.
+### Classification
 
-L'evaluation est faite sur un jeu de test equilibre RP / RS, avec comparaison supplementaire aux labels de reference fournis.
+J'ai teste :
 
-### 3. Forecasting
+- regression logistique
+- random forest
+- MLP
 
-La prevision est faite sur l'energie quotidienne a partir de l'historique recent :
+Le but est de retrouver le type de client a partir des features calculees.
 
-- baseline saisonniere `lag_7` ;
-- regression lineaire ;
-- random forest.
+### Forecasting
 
-Les features sont des retards (`lag_1`, `lag_7`, `lag_14`), moyennes glissantes et variables calendaires.
+Pour la prevision j'ai garde des modeles simples :
 
-### 4. Generation
+- baseline avec `lag_7`
+- regression lineaire
+- random forest
 
-Le generateur est volontairement simple :
+La cible est la conso journaliere.
 
-- on apprend un profil moyen demi-horaire par type de client ;
-- on echantillonne une energie journaliere realiste depuis l'historique ;
-- on ajoute un leger bruit controle a la forme de profil.
+### Generation
 
-Cette approche reste pedagogique, coherente et facile a expliquer en soutenance.
+La generation est volontairement simple :
 
-## Point important sur l'unite
+- on prend un profil moyen par type de client
+- on tire une energie journaliere plausible
+- on reconstruit une courbe demi-horaire
 
-Le notebook HTML d'origine multiplie directement `valeur * 0.5`. En pratique, les ordres de grandeur du CSV officiel Enedis ressemblent a des watts et non a des kW. Dans ce projet, on convertit donc l'energie comme suit :
+## Remarque sur les donnees
+
+Je n'utilise pas tout le dataset brut dans le pipeline final.
+Je prends un sous-jeu equilibre RP / RS pour que le test soit plus propre et pour que le projet tourne plus vite.
+
+Pour l'energie, j'ai utilise :
 
 `kWh = valeur / 1000 * 0.5`
 
-Ce choix donne des consommations journalieres realistes pour des clients residentiels 6-9 kVA.
+car les valeurs ressemblent plutot a des watts sur un pas de 30 minutes.
 
 ## Installation
 
@@ -71,31 +79,27 @@ Ce choix donne des consommations journalieres realistes pour des clients residen
 python -m pip install -r requirements.txt
 ```
 
-## Execution
+## Lancer le projet
 
-### 1. Lancer le pipeline
+### 1. Refaire le pipeline
 
 ```powershell
 python scripts/train_pipeline.py
 ```
 
-Le script :
-
-- copie le fichier de labels depuis `Downloads` ;
-- telecharge un sous-jeu equilibre RS/RP depuis l'export officiel Enedis, par paquets d'IDs ;
-- construit les tables journalieres et les features ;
-- entraine les modeles ;
-- sauvegarde les metriques et les artefacts.
-
-### 2. Lancer le dashboard
+### 2. Lancer l'app
 
 ```powershell
 streamlit run app.py
 ```
 
-## Resultats attendus dans l'application
+## Dans l'app
 
-- onglet `Clustering` : PCA, silhouette, matrice de confusion ;
-- onglet `Classification` : comparaison des modeles et importance des features ;
-- onglet `Forecasting` : metriques et courbes reelles vs predites ;
-- onglet `Generation` : courbes synthetiques conditionnelles RS / RP.
+Il y a 4 parties :
+
+- `Clustering`
+- `Classification`
+- `Forecasting`
+- `Generation`
+
+Le but est surtout de montrer les resultats de facon simple avec quelques graphes.
